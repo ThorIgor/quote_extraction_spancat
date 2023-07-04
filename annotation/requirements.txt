@@ -1,0 +1,4 @@
+typing
+numpy
+spacy
+cleanlab
