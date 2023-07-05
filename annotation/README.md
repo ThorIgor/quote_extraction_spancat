@@ -20,6 +20,7 @@ Example:`python -m prodigy quotes.manual <dataset> blank:en <input-data> -l Sour
 
 <details>
 <summary>Expand for details</summary>
+    
 ```
 usage: prodigy quotes.manual [-h] [-lo None] [-l None] [-e None] [-U] dataset spacy_model source
 
@@ -50,6 +51,7 @@ Example:`python -m prodigy quotes.correct <dataset> <model> <input-data> -l Sour
 
 <details>
 <summary>Expand for details</summary>
+    
 ```
 usage: prodigy quotes.correct [-h] [-lo None] [-l None] [-e None] [-b 64] [-U] [-UP] dataset spacy_model source
 
@@ -83,6 +85,7 @@ Example:`python -m prodigy quotes.teach <dataset> <model> <input-data> -l Source
 
 <details>
 <summary>Expand for details</summary>
+    
 ```
 usage: prodigy quotes.teach [-h] [-lo None] [-l None] [-e None] [-b 64] [-U] dataset spacy_model source
 
@@ -108,5 +111,3 @@ optional arguments:
   -U, --unsegmented     Don't get only parts with quotes
 ```
 </details>
-
-## `quotes.teach`
