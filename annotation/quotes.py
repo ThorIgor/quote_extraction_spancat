@@ -132,7 +132,6 @@ def manual(
     """
     Mark spans by token. Requires only a tokenizer, and doesn't do any active learning. 
     The recipe will present all examples in order, so even examples without matches are shown. 
-    If character highlighting is enabled, no "tokens" are saved to the database.
     """
     log("RECIPE: Starting recipe quotes.manual", locals())
     blocks = [{"view_id": "spans_manual"},
@@ -198,8 +197,8 @@ def teach(
         unsegmented: bool = False,
 ) -> RecipeSettingsType:
     """
-    Collect the best possible training data for a named entity recognition
-    model. Prodigy will decide which questions to ask next based on cleanlab score.
+    Collect the best possible training data for a spancat model. 
+    Prodigy will decide which questions to ask next based on cleanlab score.
     """
     log("RECIPE: Starting recipe quotes.teach", locals())
     blocks = [{"view_id": "spans"},
@@ -257,10 +256,10 @@ def teach(
     source=("Data to annotate (file path or '-' to read from standard input)", "positional", None, str),
     loader=("Loader (guessed from file extension if not set)", "option", "lo", str),
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
-    update=("Whether to update the model during annotation", "flag", "UP", bool),
     exclude=("Comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     batch_size=("Batch size for cleanlab socres computing", "option", "b", int),
-    unsegmented=("Don't split sentences", "flag", "U", bool),
+    unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
+    update=("Whether to update the model during annotation", "flag", "UP", bool),
     # fmt: on
 )
 def correct(
@@ -269,13 +268,13 @@ def correct(
         source: Union[str, Iterable[dict]],
         loader: Optional[str] = None,
         label: Optional[List[str]] = None,
-        update: bool = False,
         exclude: Optional[List[str]] = None,
         batch_size: int = 64,
         unsegmented: bool = False,
+        update: bool = False,
 ) -> RecipeSettingsType:
     """
-    Create gold data for NER by correcting a model's suggestions.
+    Create gold data for spancat by correcting a model's suggestions.
     Prodigy will decide which questions to ask next based on cleanlab score
     """
     log("RECIPE: Starting recipe quotes.correct", locals())
