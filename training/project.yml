@@ -5,7 +5,7 @@ vars:
   #base_config - use ngram_suggester
   #config_cs - use custom_suggester
   #config_sf - use span_finder
-  config: "config_sf"
+  config: "base_config"
   dataset: "annotations"
   
   train: "train"
@@ -22,6 +22,7 @@ directories: ["assets", "models", "configs", "scripts", "data", "metrics"]
  
 workflows:
   preprocess:
+    - install
     - preprocess_dataset
   spancat:
     - train_spancat
