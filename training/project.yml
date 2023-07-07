@@ -1,0 +1,74 @@
+title: "Spancat quotes"
+description: "This project desined to train span categorizer for quotes extraction task"
+
+vars:
+  #base_config - use ngram_suggester
+  #config_cs - use custom_suggester
+  #config_sf - use span_finder
+  config: "config_sf"
+  dataset: "annotations"
+  
+  train: "train"
+  dev: "dev"
+  spans_key: "sc"
+  
+  gpu_id: -1
+  eval_split: 0.2
+  
+  spancat_model: models/${vars.dataset}/${vars.config}/model-best
+
+
+directories: ["assets", "models", "configs", "scripts", "data", "metrics"]
+ 
+workflows:
+  preprocess:
+    - preprocess_dataset
+  spancat:
+    - train_spancat
+    - evaluate_spancat
+
+commands:
+  - name: "install"
+    help: "Install requirements"
+    script:
+      - "pip install -r requirements.txt"
+    
+  - name: "preprocess_dataset"
+    help: "Format `dataset` into .spaCy training format"
+    script:
+      - "python scripts/preprocess.py assets/${vars.dataset}.jsonl data/${vars.dataset}_${vars.train}.spacy data/${vars.dataset}_${vars.dev}.spacy ${vars.eval_split} ${vars.spans_key}"
+    deps:
+      - "assets/${vars.dataset}.jsonl"
+      - "scripts/preprocess.py"
+    outputs:
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+  
+  - name: "train_spancat"
+    help: "Train a spancat model on the `dataset`"
+    script:
+      - "python -m spacy train configs/${vars.config}.cfg --output models/${vars.dataset}/${vars.config}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} --code scripts/custom_suggester.py"
+    deps:
+      - "configs/${vars.config}.cfg"
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - "${vars.spancat_model}"
+  
+  - name: "evaluate_spancat"
+    help: "Evaluate a trained spancat model on the `dataset`"
+    script:
+      - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.config}.json --gpu-id ${vars.gpu_id} --code scripts/custom_suggester.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy"
+    deps:
+      - "${vars.spancat_model}"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - metrics/spancat_${vars.dataset}_${vars.config}.json
+      
+  - name: "reset"
+    help: "Reset the project to its original state and delete all training process"
+    script:
+      - "python scripts/reset.py models"
+      - "python scripts/reset.py metrics"
+      - "python scripts/reset.py data"
