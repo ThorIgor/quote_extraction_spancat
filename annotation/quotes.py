@@ -228,32 +228,51 @@ def teach(
                "field_id": "feedback",
                "field_label": "Optional feedback",
                "field_placeholder": "Type here..."}]
+    
+    nlp = spacy.load(spacy_model)
+    labels = nlp.get_pipe("spancat").labels
+    spans_key = nlp.get_pipe("spancat").cfg['spans_key']
+    log(f"RECIPE: Creating EntityRecognizer using model {spacy_model}")
+    if not label:
+        label = labels
+        if not labels:
+            msg.fail("No --label argument set and no labels found in model", exits=1)
+        msg.text(f"Using {len(labels)} labels from model: {', '.join(labels)}")
 
     stream = get_stream(
         source, loader=loader, rehash=True, dedup=True, input_key="text"
     )
-
-    nlp = spacy.load(spacy_model)
-    log(f"RECIPE: Creating EntityRecognizer using model {spacy_model}")
-    if label is not None:
-        log("RECIPE: Making sure all labels are in the model", label)
-        labels = nlp.get_pipe("spancat").labels
-        for label_name in label:
-            if label_name not in labels:
-                msg.info(f"Available labels in model {spacy_model}: {labels}")
-                msg.fail(
-                    f"Can't find label '{label_name}' in model {spacy_model}",
-                    "ner.teach will only show entities with one of the "
-                    "specified labels. If a label is not available in the "
-                    "model, Prodigy won't be able to propose entities for "
-                    "annotation. To add a new label, you can pre-train "
-                    "your model with examples of the new entity and load "
-                    "it back in.",
-                    exits=1,
-                )
     if not unsegmented:
         stream = get_parts_with_quotes(stream, nlp.lang)
     stream = prefer_low_scores(get_cleanlab_scores(nlp, stream, batch_size))
+
+    def make_tasks(nlp: Language, stream: StreamType) -> StreamType:
+        """Add a 'spans' key to each example, with predicted entities."""
+        texts = ((eg["text"], eg) for eg in stream)
+        for doc, eg in nlp.pipe(texts, as_tuples=True, batch_size=10):
+            task = copy.deepcopy(eg)
+            spans = []
+            for ent in doc.spans[spans_key]:
+                if labels and ent.label_ not in labels:
+                    continue
+                spans.append(
+                    {
+                        "token_start": ent.start,
+                        "token_end": ent.end - 1,
+                        "start": ent.start_char,
+                        "end": ent.end_char,
+                        "text": ent.text,
+                        "label": ent.label_,
+                        "source": spacy_model,
+                        "input_hash": eg[INPUT_HASH_ATTR],
+                    }
+                )
+            task["spans"] = spans
+            task[BINARY_ATTR] = False
+            task = set_hashes(task)
+            yield task
+    
+    stream = make_tasks(nlp, stream)
 
     return {
         "view_id": "blocks",
