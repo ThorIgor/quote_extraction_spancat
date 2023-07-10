@@ -34,10 +34,13 @@ def custom_suggester(docs: Iterable[Doc], *, ops: Optional[Ops] = None) -> Ragge
 
         for match in re.finditer(pattern, doc.text):
             span = doc.char_span(match.start(), match.end())
-            if (span.start, span.end) not in cache:
-                spans.append((span.start, span.end))
-                cache.append((span.start, span.end))
-                length += 1
+            if span:
+                if (span.start, span.end) not in cache:
+                    spans.append((span.start, span.end))
+                    cache.append((span.start, span.end))
+                    length += 1
+            else:
+                print(f"Suggester warning: span is None, match: ({match.start()}, {match.end()}), span: {doc.text[match.start():match.end()]}")
         
         start = 0
         for s, e in cache:

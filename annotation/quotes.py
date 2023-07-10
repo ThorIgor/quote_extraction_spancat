@@ -1,3 +1,12 @@
+import sys
+import os
+
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
+
+from training.scripts import custom_suggester
+
 import numpy as np
 
 from typing import List, Optional, Union, Iterable
@@ -22,13 +31,20 @@ from prodigy.types import StreamType, RecipeSettingsType
 
 from cleanlab.multiannotator import get_label_quality_scores, get_active_learning_scores
 
+def chunks(text:str, max:int):
+    if len(text) < max:
+        return [text]
+    return [text[i:i+max] for i in range(0, len(text), max) ]
+
 
 def get_parts_with_quotes(stream:StreamType, lang:str)->StreamType:
     nlp = spacy.blank(lang)
     nlp.add_pipe("sentencizer")
     pattern = """["'«„].+?["'»“]"""
     for doc in stream:
-        sents = list(nlp(doc['text']).sents)
+        sents = []
+        for chunk in chunks(doc['text'], 1000000):
+            sents += list(nlp(chunk).sents)
 
         # Search for candidate results
         results = []
@@ -57,20 +73,25 @@ def get_parts_with_quotes(stream:StreamType, lang:str)->StreamType:
             new_results.append(last_result)
 
         for result in new_results:
-            yield {"text": doc['text'][result[0]:result[1]], "meta":doc['meta']}
+            eg = set_hashes({"text": doc['text'][result[0]:result[1]], "meta":doc['meta']})
+            yield eg
 
 def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
     while True:
-        batch = [s for i, s in enumerate(stream) if stream or i < batch_size]
+        msg.info(f"Computing clenalab  scores in batch. Size: {batch_size}. Could take some time")
+        batch = []
+        for i, s in enumerate(stream):
+            if i > batch_size:
+                break
+            batch.append(s)
         if batch:
             docs = list(nlp.pipe([s['text'] for s in batch]))
-
             # computing confidence socres
             inds, scores = nlp.get_pipe("spancat").predict(docs)    
             
             # computing cleanlab scores
             _, scores = get_active_learning_scores(pred_probs_unlabeled=scores)
-
+            
             # mean socres in each document for spancat
             count = 0
             new_scores = []
@@ -287,7 +308,7 @@ def correct(
     nlp = spacy.load(spacy_model)
     labels = nlp.get_pipe("spancat").labels
     spans_key = nlp.get_pipe("spancat").cfg['spans_key']
-    if not labels:
+    if not label:
         label = labels
         if not labels:
             msg.fail("No --label argument set and no labels found in model", exits=1)
@@ -301,7 +322,8 @@ def correct(
     if not unsegmented:
         stream = get_parts_with_quotes(stream, nlp.lang)
     stream = prefer_low_scores(get_cleanlab_scores(nlp, stream, batch_size))
-    #stream = add_tokens(nlp, stream)
+    stream.first_n = batch_size
+    stream = add_tokens(nlp, stream)
 
     def make_tasks(nlp: Language, stream: StreamType) -> StreamType:
         """Add a 'spans' key to each example, with predicted entities."""
@@ -342,9 +364,9 @@ def correct(
                 ]
                 value = SetEntsDefault.outside if no_missing else SetEntsDefault.missing
                 ref.set_ents(spans, default=value)
+                ref.spans[spans_key] = spans
                 examples.append(Example(doc, ref))
         nlp.update(examples)
-
     stream = make_tasks(nlp, stream)
 
     return {
