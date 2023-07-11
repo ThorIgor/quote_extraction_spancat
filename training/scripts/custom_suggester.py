@@ -40,7 +40,7 @@ def custom_suggester(docs: Iterable[Doc], *, ops: Optional[Ops] = None) -> Ragge
                     cache.append((span.start, span.end))
                     length += 1
             else:
-                print(f"Suggester warning: span is None, match: ({match.start()}, {match.end()}), span: {doc.text[match.start():match.end()]}")
+                print(f"Suggester warning: span is None, match: ({match.start()}, {match.end()}), span: {doc.text[match.start():match.end()]}, doc: {doc.text}")
         
         start = 0
         for s, e in cache:

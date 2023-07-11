@@ -384,6 +384,8 @@ def correct(
                 value = SetEntsDefault.outside if no_missing else SetEntsDefault.missing
                 ref.set_ents(spans, default=value)
                 ref.spans[spans_key] = spans
+                if "span_finder" in nlp.pipe_names:
+                    doc.spans['span_candidates'] = spans
                 examples.append(Example(doc, ref))
         nlp.update(examples)
     stream = make_tasks(nlp, stream)

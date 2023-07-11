@@ -5,12 +5,14 @@ vars:
   #base_config - use ngram_suggester
   #config_cs - use custom_suggester
   #config_sf - use span_finder
-  config: "base_config"
-  dataset: "annotations"
+  config: "config_sf"
+  dataset: "rus_docs"
   
   train: "train"
   dev: "dev"
   spans_key: "sc"
+  
+  lang: "ru"
   
   gpu_id: -1
   eval_split: 0.2
@@ -48,7 +50,7 @@ commands:
   - name: "train_spancat"
     help: "Train a spancat model on the `dataset`"
     script:
-      - "python -m spacy train configs/${vars.config}.cfg --output models/${vars.dataset}/${vars.config}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} --code scripts/custom_suggester.py"
+      - "python -m spacy train configs/${vars.config}.cfg --output models/${vars.dataset}/${vars.config}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} --nlp.lang ${vars.lang} --code scripts/custom_suggester.py"
     deps:
       - "configs/${vars.config}.cfg"
       - "data/${vars.dataset}_${vars.train}.spacy"

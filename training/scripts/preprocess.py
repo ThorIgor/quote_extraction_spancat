@@ -26,12 +26,11 @@ def main(
     msg.info(f"Processing {json_loc.name}")
     # Load dataset
     with json_loc.open("r", encoding="utf8") as jsonfile:
-        examples = json.load(jsonfile)
         # examples = []
         # for line in jsonfile:
         #     examples.append(json.loads(line))
-        
-        for example in examples:
+        for line in jsonfile:
+            example = json.loads(line)
             if example["answer"] == "accept":
                 doc = nlp(example["text"])
                 spans = []
