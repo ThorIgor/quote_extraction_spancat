@@ -2,3 +2,5 @@ typing
 numpy
 spacy
 cleanlab
+psycopg2
+spacy-experimental

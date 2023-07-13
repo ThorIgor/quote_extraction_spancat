@@ -41,7 +41,7 @@ def main(
                             Span(
                                 doc,
                                 span["token_start"],
-                                span["token_end"],
+                                span["token_end"]+1,
                                 span["label"],
                             )
                         )
@@ -51,26 +51,20 @@ def main(
 
                         total_span_count[span["label"]] += 1
 
-                        span_length = span["token_end"] - span["token_start"]
+                        span_length = (span["token_end"]+1) - span["token_start"]
                         if span_length > max_span_length:
                             max_span_length = span_length
 
-                doc.set_ents(spans)
                 doc.spans[span_key] = spans
-
-                if len(doc.ents) > 0:
-                    docs.append(doc)
-                else:
-                    empty_docs.append(doc)
-
+                docs.append(doc)
+                
     # Split
     train = []
     dev = []
 
     split = int(len(docs) * eval_split)
-    empty_split = int(len(empty_docs) * eval_split)
-    train = docs[split:] + empty_docs[empty_split:]
-    dev = docs[:split] + empty_docs[:empty_split]
+    train = docs[split:]
+    dev = docs[:split] 
 
     # Save to disk
     docbin = DocBin(docs=train, store_user_data=True)
