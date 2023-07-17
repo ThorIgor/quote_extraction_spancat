@@ -6,7 +6,7 @@ vars:
   #config_cs - use custom_suggester
   #config_sf - use span_finder
   config: "config_sf"
-  dataset: "rus_docs"
+  dataset: "quote-extraction-russian"
   
   train: "train"
   dev: "dev"
