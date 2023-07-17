@@ -31,6 +31,11 @@ from prodigy.types import StreamType, RecipeSettingsType
 
 from cleanlab.multiannotator import get_label_quality_scores, get_active_learning_scores
 
+def add_author(stream:StreamType, author:str):
+    for eg in stream:
+        eg['meta']['author'] = author
+        yield eg 
+
 def chunks(text:str, max:int):
     if len(text) < max:
         return [text]
@@ -138,6 +143,7 @@ def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
     loader=("Loader (guessed from file extension if not set)", "option", "lo", str),
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
     exclude=("Comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
+    author=("Name of annotator", "option", "a", str),
     unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     # fmt: on
 )
@@ -148,6 +154,7 @@ def manual(
         loader: Optional[str] = None,
         label: Optional[List[str]] = None,
         exclude: Optional[List[str]] = None,
+        author: Optional[str] = None,
         unsegmented: bool = False,
 ) -> RecipeSettingsType:
     """
@@ -172,6 +179,8 @@ def manual(
     stream = get_stream(
         source, loader=loader, rehash=True, dedup=True, input_key="text", is_binary=False
     )
+    if author:
+        stream = add_author(stream, author)
     if not unsegmented:
         stream = get_parts_with_quotes(stream, nlp.lang)
     # Add "tokens" key to the tasks, either with words or characters
@@ -204,6 +213,7 @@ def manual(
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
     exclude=("Comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     batch_size=("Batch size for cleanlab socres computing", "option", "b", int),
+    author=("Name of annotator", "option", "a", str),
     unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     # fmt: on
 )
@@ -215,6 +225,7 @@ def teach(
         label: Optional[List[str]] = None,
         exclude: Optional[List[str]] = None,
         batch_size: int = 64,
+        author: Optional[str] = None,
         unsegmented: bool = False,
 ) -> RecipeSettingsType:
     """
@@ -242,6 +253,8 @@ def teach(
     stream = get_stream(
         source, loader=loader, rehash=True, dedup=True, input_key="text"
     )
+    if author:
+        stream = add_author(stream, author)
     if not unsegmented:
         stream = get_parts_with_quotes(stream, nlp.lang)
     stream = prefer_low_scores(get_cleanlab_scores(nlp, stream, batch_size))
@@ -298,6 +311,7 @@ def teach(
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
     exclude=("Comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     batch_size=("Batch size for cleanlab socres computing", "option", "b", int),
+    author=("Name of annotator", "option", "a", str),
     unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     update=("Whether to update the model during annotation", "flag", "UP", bool),
     # fmt: on
@@ -310,6 +324,7 @@ def correct(
         label: Optional[List[str]] = None,
         exclude: Optional[List[str]] = None,
         batch_size: int = 64,
+        author: Optional[str] = None,
         unsegmented: bool = False,
         update: bool = False,
 ) -> RecipeSettingsType:
@@ -338,6 +353,8 @@ def correct(
     stream = get_stream(
         source, loader=loader, rehash=True, dedup=True, input_key="text"
     )
+    if author:
+        stream = add_author(stream, author)
     if not unsegmented:
         stream = get_parts_with_quotes(stream, nlp.lang)
     stream = prefer_low_scores(get_cleanlab_scores(nlp, stream, batch_size))
