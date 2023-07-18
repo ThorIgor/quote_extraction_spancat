@@ -1,0 +1,14 @@
+{
+    "host": "localhost",
+    "port": 8080,
+    "db": "postgresql",
+    "db_settings": {
+      "postgresql": {
+          "user": "postgres",
+          "password": "8SBsa37AkkzdyXp",
+          "host": "65.109.12.98",
+          "port": 6543,
+          "database": "postgres"
+        }
+    }
+}

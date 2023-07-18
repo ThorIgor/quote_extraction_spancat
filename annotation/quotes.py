@@ -1,12 +1,3 @@
-import sys
-import os
-
-current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
-sys.path.append(parent)
-
-from training.scripts import custom_suggester
-
 import numpy as np
 
 from typing import List, Optional, Union, Iterable
@@ -20,16 +11,16 @@ import copy
 import re
 from collections import Counter
 
-from prodigy.components.preprocess import split_sentences, add_tokens, make_raw_doc
+from prodigy.components.preprocess import add_tokens, make_raw_doc
 from prodigy.components.sorters import prefer_low_scores
 from prodigy.components.loaders import get_stream
 from prodigy.core import recipe, Controller
-from prodigy.util import set_hashes, log, split_string, get_labels, copy_nlp, color
+from prodigy.util import set_hashes, log, split_string, get_labels, color
 from prodigy.util import BINARY_ATTR
 from prodigy.util import INPUT_HASH_ATTR, msg
 from prodigy.types import StreamType, RecipeSettingsType
 
-from cleanlab.multiannotator import get_label_quality_scores, get_active_learning_scores
+from cleanlab.multiannotator import get_active_learning_scores
 
 def add_author(stream:StreamType, author:str):
     for eg in stream:

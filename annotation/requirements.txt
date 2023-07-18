@@ -2,5 +2,5 @@ typing
 numpy
 spacy
 cleanlab
-psycopg2
+psycopg2-binary
 spacy-experimental
