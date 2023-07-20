@@ -17,7 +17,6 @@ def main(
 ):
     """Parse the annotations into a training and development set for Spancat."""
 
-    empty_docs = []
     docs = []
     nlp = spacy.blank("en")
     total_span_count = {}
@@ -26,9 +25,6 @@ def main(
     msg.info(f"Processing {json_loc.name}")
     # Load dataset
     with json_loc.open("r", encoding="utf8") as jsonfile:
-        # examples = []
-        # for line in jsonfile:
-        #     examples.append(json.loads(line))
         for line in jsonfile:
             example = json.loads(line)
             if example["answer"] == "accept":
@@ -36,6 +32,8 @@ def main(
                 spans = []
 
                 if "spans" in example:
+                    if example["spans"] is None:
+                        example["spans"] = []
                     for span in example["spans"]:
                         spans.append(
                             Span(
@@ -72,6 +70,9 @@ def main(
 
     docbin = DocBin(docs=dev, store_user_data=True)
     docbin.to_disk(dev_file)
+
+    # Info
+    msg.info(f"Examples: {len(docs)}")
     for key in total_span_count:
         msg.info(f"{key}: {total_span_count[key]}")
     msg.info(f"Max span lenght: {max_span_length}")

@@ -16,15 +16,15 @@ Please note that you will need a copy of [Prodigy](https://prodi.gy/) (v1.11.5) 
 
 ## `quotes.manual`
 
-Example:`python -m prodigy quotes.manual <dataset> blank:en <input-data> -l Source,Content,Cue -F quotes.py`
+Example:`python -m prodigy quotes.manual <dataset> blank:ru <input-data> -l source,content,cue -F quotes.py`
 
 <details>
 <summary>Expand for details</summary>
     
 ```
-usage: prodigy quotes.manual [-h] [-lo None] [-l None] [-e None] [-U] dataset spacy_model source
+usage: prodigy quotes.manual [-h] [-lo None] [-l None] [-e None] [-a None] dataset spacy_model source
 
-    Mark spans by token. Requires only a tokenizer, and doesn't do any active learning. 
+    Mark spans by token. Requires only a tokenizer, and doesn't do any active learning.
     The recipe will present all examples in order, so even examples without matches are shown.
 
 
@@ -40,20 +40,21 @@ optional arguments:
   -l None, --label None
                         Comma-separated label(s) to annotate or text file with one label per line
   -e None, --exclude None
-                        Comma-separated list of dataset IDs whose annotations to exclude
-  -U, --unsegmented     Don't get only parts with quotes
+                        Dataset name or comma-separated list of dataset IDs whose annotations to exclude
+  -a None, --author None
+                        Name of annotator
 ```
 </details>
 
 ## `quotes.correct`
 
-Example:`python -m prodigy quotes.correct <dataset> <model> <input-data> -l Source,Content,Cue -b 256 -F quotes.py`
+Example:`python -m prodigy quotes.correct <dataset> <model> <input-data> -l source,content,cue -b 256 -F quotes.py`
 
 <details>
 <summary>Expand for details</summary>
     
 ```
-usage: prodigy quotes.correct [-h] [-lo None] [-l None] [-e None] [-b 64] [-U] [-UP] dataset spacy_model source
+usage: prodigy quotes.correct [-h] [-lo None] [-l None] [-e None] [-b 64] [-a None] [-UP] dataset spacy_model source
 
     Create gold data for spancat by correcting a model's suggestions.
     Prodigy will decide which questions to ask next based on cleanlab score
@@ -71,23 +72,24 @@ optional arguments:
   -l None, --label None
                         Comma-separated label(s) to annotate or text file with one label per line
   -e None, --exclude None
-                        Comma-separated list of dataset IDs whose annotations to exclude
+                        Database name or comma-separated list of dataset IDs whose annotations to exclude
   -b 64, --batch-size 64
                         Batch size for cleanlab socres computing
-  -U, --unsegmented     Don't get only parts with quotes
+  -a None, --author None
+                        Name of annotator
   -UP, --update         Whether to update the model during annotation
 ```
 </details>
 
 ## `quotes.teach`
 
-Example:`python -m prodigy quotes.teach <dataset> <model> <input-data> -l Source,Content,Cue -F quotes.py`
+Example:`python -m prodigy quotes.teach <dataset> <model> <input-data> -l source,content,cue -F quotes.py`
 
 <details>
 <summary>Expand for details</summary>
     
 ```
-usage: prodigy quotes.teach [-h] [-lo None] [-l None] [-e None] [-b 64] [-U] dataset spacy_model source
+usage: prodigy quotes.teach [-h] [-lo None] [-l None] [-e None] [-b 64] [-a None] dataset spacy_model source
 
     Collect the best possible training data for a spancat model.
     Prodigy will decide which questions to ask next based on cleanlab score.
@@ -105,9 +107,10 @@ optional arguments:
   -l None, --label None
                         Comma-separated label(s) to annotate or text file with one label per line
   -e None, --exclude None
-                        Comma-separated list of dataset IDs whose annotations to exclude
+                        Dataset name or comma-separated list of dataset IDs whose annotations to exclude
   -b 64, --batch-size 64
                         Batch size for cleanlab socres computing
-  -U, --unsegmented     Don't get only parts with quotes
+  -a None, --author None
+                        Name of annotator
 ```
 </details>

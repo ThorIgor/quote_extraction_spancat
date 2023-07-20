@@ -30,47 +30,7 @@ def add_author(stream:StreamType, author:str):
 def chunks(text:str, max:int):
     if len(text) < max:
         return [text]
-    return [text[i:i+max] for i in range(0, len(text), max) ]
-
-
-def get_parts_with_quotes(stream:StreamType, lang:str)->StreamType:
-    nlp = spacy.blank(lang)
-    nlp.add_pipe("sentencizer")
-    pattern = """["'«„].+?["'»“]"""
-    for doc in stream:
-        sents = []
-        for chunk in chunks(doc['text'], 1000000):
-            sents += list(nlp(chunk).sents)
-
-        # Search for candidate results
-        results = []
-        for quote in re.finditer(pattern, doc['text']):
-            result = [0, 0]
-            for i, sent in enumerate(sents):
-                if sent.start_char < quote.start(0):
-                    result[0] = sents[i-1 if i != 0 else i].start_char
-                if sent.end_char > quote.end(0):
-                    result[1] = sents[i+1 if i != len(sents)-1 else i].end_char
-                    results.append(result)
-                    break
-
-        # Unite intersected results
-        last_result = None
-        new_results = []
-        for result in results:
-            if last_result is None:
-                last_result = result
-            if last_result[1] > result[0]:
-                last_result = [last_result[0], max(last_result[1], result[1])]
-            else:
-                new_results.append(last_result)
-                last_result = result
-        if last_result is not None:
-            new_results.append(last_result)
-
-        for result in new_results:
-            eg = set_hashes({"text": doc['text'][result[0]:result[1]], "meta":doc['meta']})
-            yield eg
+    return [text[i:i+max] for i in range(0, len(text), max)]
 
 def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
     while True:
@@ -133,9 +93,9 @@ def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
     source=("Data to annotate (file path or '-' to read from standard input)", "positional", None, str),
     loader=("Loader (guessed from file extension if not set)", "option", "lo", str),
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
-    exclude=("Comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
+    exclude=("Dataset name or comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     author=("Name of annotator", "option", "a", str),
-    unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
+    #unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     # fmt: on
 )
 def manual(
@@ -146,7 +106,7 @@ def manual(
         label: Optional[List[str]] = None,
         exclude: Optional[List[str]] = None,
         author: Optional[str] = None,
-        unsegmented: bool = False,
+        #unsegmented: bool = False,
 ) -> RecipeSettingsType:
     """
     Mark spans by token. Requires only a tokenizer, and doesn't do any active learning. 
@@ -172,8 +132,8 @@ def manual(
     )
     if author:
         stream = add_author(stream, author)
-    if not unsegmented:
-        stream = get_parts_with_quotes(stream, nlp.lang)
+    # if not unsegmented:
+    #     stream = get_parts_with_quotes(stream, nlp.lang)
     # Add "tokens" key to the tasks, either with words or characters
     stream = add_tokens(nlp, stream)
 
@@ -202,10 +162,10 @@ def manual(
     source=("Data to annotate (file path or '-' to read from standard input)", "positional", None, str),
     loader=("Loader (guessed from file extension if not set)", "option", "lo", str),
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
-    exclude=("Comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
+    exclude=("Dataset name or comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     batch_size=("Batch size for cleanlab socres computing", "option", "b", int),
     author=("Name of annotator", "option", "a", str),
-    unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
+    #unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     # fmt: on
 )
 def teach(
@@ -217,7 +177,7 @@ def teach(
         exclude: Optional[List[str]] = None,
         batch_size: int = 64,
         author: Optional[str] = None,
-        unsegmented: bool = False,
+        #unsegmented: bool = False,
 ) -> RecipeSettingsType:
     """
     Collect the best possible training data for a spancat model. 
@@ -246,8 +206,8 @@ def teach(
     )
     if author:
         stream = add_author(stream, author)
-    if not unsegmented:
-        stream = get_parts_with_quotes(stream, nlp.lang)
+    # if not unsegmented:
+    #     stream = get_parts_with_quotes(stream, nlp.lang)
     stream = prefer_low_scores(get_cleanlab_scores(nlp, stream, batch_size))
 
     def make_tasks(nlp: Language, stream: StreamType) -> StreamType:
@@ -300,10 +260,10 @@ def teach(
     source=("Data to annotate (file path or '-' to read from standard input)", "positional", None, str),
     loader=("Loader (guessed from file extension if not set)", "option", "lo", str),
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
-    exclude=("Comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
+    exclude=("Dataset name or comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     batch_size=("Batch size for cleanlab socres computing", "option", "b", int),
     author=("Name of annotator", "option", "a", str),
-    unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
+    #unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     update=("Whether to update the model during annotation", "flag", "UP", bool),
     # fmt: on
 )
@@ -316,7 +276,7 @@ def correct(
         exclude: Optional[List[str]] = None,
         batch_size: int = 64,
         author: Optional[str] = None,
-        unsegmented: bool = False,
+        #unsegmented: bool = False,
         update: bool = False,
 ) -> RecipeSettingsType:
     """
@@ -346,8 +306,8 @@ def correct(
     )
     if author:
         stream = add_author(stream, author)
-    if not unsegmented:
-        stream = get_parts_with_quotes(stream, nlp.lang)
+    # if not unsegmented:
+    #     stream = get_parts_with_quotes(stream, nlp.lang)
     stream = prefer_low_scores(get_cleanlab_scores(nlp, stream, batch_size))
     stream.first_n = batch_size
     stream = add_tokens(nlp, stream)
@@ -423,3 +383,44 @@ def print_results(ctrl: Controller) -> None:
         for key in ["accept", "reject", "ignore"]:
             if key in counts:
                 msg.row([key.title(), color(round(counts[key]), key)], widths=10)
+
+# Code that not used but could be helpfull in the future
+
+def get_parts_with_quotes(stream:StreamType, lang:str)->StreamType:
+    nlp = spacy.blank(lang)
+    nlp.add_pipe("sentencizer")
+    pattern = """["'«„].+?["'»“]"""
+    for doc in stream:
+        sents = []
+        for chunk in chunks(doc['text'], 1000000):
+            sents += list(nlp(chunk).sents)
+
+        # Search for candidate results
+        results = []
+        for quote in re.finditer(pattern, doc['text']):
+            result = [0, 0]
+            for i, sent in enumerate(sents):
+                if sent.start_char < quote.start(0):
+                    result[0] = sents[i-1 if i != 0 else i].start_char
+                if sent.end_char > quote.end(0):
+                    result[1] = sents[i+1 if i != len(sents)-1 else i].end_char
+                    results.append(result)
+                    break
+
+        # Unite intersected results
+        last_result = None
+        new_results = []
+        for result in results:
+            if last_result is None:
+                last_result = result
+            if last_result[1] > result[0]:
+                last_result = [last_result[0], max(last_result[1], result[1])]
+            else:
+                new_results.append(last_result)
+                last_result = result
+        if last_result is not None:
+            new_results.append(last_result)
+
+        for result in new_results:
+            eg = set_hashes({"text": doc['text'][result[0]:result[1]], "meta":doc['meta']})
+            yield eg
