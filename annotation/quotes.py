@@ -346,14 +346,16 @@ def correct(
                 doc = make_raw_doc(nlp, eg)
                 ref = make_raw_doc(nlp, eg)
                 spans = [
-                    doc.char_span(span["start"], span["end"], label=span["label"])
+                    ref.char_span(span["start"], span["end"], label=span["label"])
                     for span in eg.get("spans", [])
                 ]
-                value = SetEntsDefault.outside if no_missing else SetEntsDefault.missing
-                ref.set_ents(spans, default=value)
+                span_candidates = [
+                    doc.char_span(span["start"], span["end"])
+                    for span in eg.get("spans", [])
+                ]
+                if 'span_finder' in nlp.pipe_names:
+                    doc.spans['span_candidates'] = span_candidates
                 ref.spans[spans_key] = spans
-                if "span_finder" in nlp.pipe_names:
-                    doc.spans['span_candidates'] = spans
                 examples.append(Example(doc, ref))
         nlp.update(examples)
     stream = make_tasks(nlp, stream)
