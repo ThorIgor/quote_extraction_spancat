@@ -53,7 +53,7 @@ def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
             new_scores = []
             for l in inds.lengths:
                 if l > 0:
-                    new_scores.append(np.mean(scores[count:count+l]))
+                    new_scores.append(np.min(scores[count:count+l]))
                 else:
                     new_scores.append(1)
                 count+=l
@@ -68,7 +68,7 @@ def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
                 for doc in docs:
                     l = len(doc)
                     if l > 0:
-                        new_finder_scores.append(np.mean(finder_scores[count:count+l]))
+                        new_finder_scores.append(np.min(finder_scores[count:count+l]))
                     else:
                         new_finder_scores.append(1)
                     count+=l
