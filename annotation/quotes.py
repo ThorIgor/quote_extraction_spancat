@@ -145,6 +145,7 @@ def manual(
         "on_exit": print_results,
         "before_db": None,
         "config": {
+            "session": author,
             "labels": labels,
             "exclude_by": "input",
             "auto_count_stream": True,
@@ -245,6 +246,7 @@ def teach(
         "exclude": exclude,
         "on_exit": print_results,
         "config": {
+            "session": author,
             "lang": nlp.lang,
             "label": ", ".join(label) if label is not None else "all",
             "blocks": blocks,
@@ -367,6 +369,7 @@ def correct(
         "update": make_update if update else None,
         "exclude": exclude,
         "config": {
+            "session": author,
             "labels": label,
             "on_exit": print_results,
             "exclude_by": "input",
