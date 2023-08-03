@@ -1,9 +1,11 @@
-from spacy.tokens import DocBin, Span
-import spacy
-from wasabi import Printer
+# -*- coding: utf-8 -*-
 import json
 from pathlib import Path
+
+import spacy
 import typer
+from spacy.tokens import DocBin, Span
+from wasabi import Printer
 
 msg = Printer()
 
@@ -34,12 +36,12 @@ def main(
                 if "spans" in example:
                     if example["spans"] is None:
                         example["spans"] = []
-                    for span in example["spans"]:
+                    for span in example["spans"]:  # type: ignore
                         spans.append(
                             Span(
                                 doc,
                                 span["token_start"],
-                                span["token_end"]+1,
+                                span["token_end"] + 1,
                                 span["label"],
                             )
                         )
@@ -49,20 +51,20 @@ def main(
 
                         total_span_count[span["label"]] += 1
 
-                        span_length = (span["token_end"]+1) - span["token_start"]
+                        span_length = (span["token_end"] + 1) - span["token_start"]
                         if span_length > max_span_length:
                             max_span_length = span_length
 
                 doc.spans[span_key] = spans
                 docs.append(doc)
-                
+
     # Split
     train = []
     dev = []
 
     split = int(len(docs) * eval_split)
     train = docs[split:]
-    dev = docs[:split] 
+    dev = docs[:split]
 
     # Save to disk
     docbin = DocBin(docs=train, store_user_data=True)

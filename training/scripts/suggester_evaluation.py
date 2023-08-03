@@ -1,11 +1,12 @@
-import custom_suggester
+# -*- coding: utf-8 -*-
+
+from pathlib import Path
 
 import spacy
+import typer
 from spacy.tokens import DocBin
-from pathlib import Path
 from tqdm import tqdm
 from wasabi import msg
-import typer
 
 
 def main(
@@ -29,7 +30,7 @@ def main(
     msg.info("Starting evaluation")
 
     for test_doc in tqdm(
-        test_docs, total=len(test_docs), desc=f"Evaluation test dataset"
+        test_docs, total=len(test_docs), desc="Evaluation test dataset"
     ):
         # Prediction
         text = test_doc.text
