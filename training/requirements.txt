@@ -1,4 +1,4 @@
 numpy
 spacy
-psycopg2
+spacy-transformers
 spacy-experimental
