@@ -1,19 +1,21 @@
+# -*- coding: utf-8 -*-
 import re
+from typing import Iterable, List, Optional, cast
 
 import spacy
-from spacy.tokens import Doc, Span
 from spacy.pipeline.spancat import Suggester
+from spacy.tokens import Doc, Span
+from thinc.api import Ops, get_current_ops
+from thinc.types import Ints1d, Ragged
 
-from typing import List, Optional, Iterable, cast
-from thinc.api import get_current_ops, Ops
-from thinc.types import Ragged, Ints1d
 
-def get_spans(doc:Doc, start:int, end:int) -> List[Span]:
+def get_spans(doc: Doc, start: int, end: int) -> List[Span]:
     spans = []
-    for l in range(1, end - start):
-        for i in range(start, end-l):
-            spans.append((doc[i:i+l].start, doc[i:i+l].end))
+    for length in range(1, end - start):
+        for i in range(start, end - length):
+            spans.append((doc[i : i + length].start, doc[i : i + length].end))
     return spans
+
 
 @spacy.registry.misc("custom_suggester")
 def build_custom_suggester() -> Suggester:
@@ -40,8 +42,10 @@ def custom_suggester(docs: Iterable[Doc], *, ops: Optional[Ops] = None) -> Ragge
                     cache.append((span.start, span.end))
                     length += 1
             else:
-                print(f"Suggester warning: span is None, match: ({match.start()}, {match.end()}), span: {doc.text[match.start():match.end()]}, doc: {doc.text}")
-        
+                print(
+                    f"Suggester warning: span is None, match: ({match.start()}, {match.end()}), span: {doc.text[match.start():match.end()]}, doc: {doc.text}"
+                )
+
         start = 0
         for s, e in cache:
             sp = get_spans(doc, start, s)
@@ -52,15 +56,13 @@ def custom_suggester(docs: Iterable[Doc], *, ops: Optional[Ops] = None) -> Ragge
         length += len(sp)
         spans += sp
         start = e
-        
+
         lengths.append(length)
-
-
 
     lengths_array = cast(Ints1d, ops.asarray(lengths, dtype="i"))
     if len(spans) > 0:
         output = Ragged(ops.asarray(spans, dtype="i"), lengths_array)
     else:
         output = Ragged(ops.xp.zeros((0, 0), dtype="i"), lengths_array)
-    
+
     return output

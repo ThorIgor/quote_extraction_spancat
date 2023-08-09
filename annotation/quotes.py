@@ -1,85 +1,98 @@
-import numpy as np
-
-from typing import List, Optional, Union, Iterable
-
-import spacy
-from spacy.language import Language
-from spacy.training import Example
-from spacy.tokens.doc import SetEntsDefault
-
+# -*- coding: utf-8 -*-
 import copy
 import re
 from collections import Counter
+from typing import TYPE_CHECKING, Iterable, List, Optional, Union
 
+import numpy as np
+import spacy
+from cleanlab.multiannotator import get_active_learning_scores
+from prodigy.components.loaders import get_stream
 from prodigy.components.preprocess import add_tokens, make_raw_doc
 from prodigy.components.sorters import prefer_low_scores
-from prodigy.components.loaders import get_stream
-from prodigy.core import recipe, Controller
-from prodigy.util import set_hashes, log, split_string, get_labels, color
-from prodigy.util import BINARY_ATTR
-from prodigy.util import INPUT_HASH_ATTR, msg
-from prodigy.types import StreamType, RecipeSettingsType
+from prodigy.core import Controller, recipe
+from prodigy.types import RecipeSettingsType, StreamType
+from prodigy.util import (
+    BINARY_ATTR,
+    INPUT_HASH_ATTR,
+    color,
+    get_labels,
+    log,
+    msg,
+    set_hashes,
+    split_string,
+)
+from spacy.language import Language
+from spacy.training import Example
 
-from cleanlab.multiannotator import get_active_learning_scores
 
-def add_author(stream:StreamType, author:str):
+def add_author(stream: StreamType, author: str):
     for eg in stream:
-        eg['meta']['author'] = author
-        yield eg 
+        eg["meta"]["author"] = author
+        yield eg
 
-def chunks(text:str, max:int):
+
+def chunks(text: str, max: int):
     if len(text) < max:
         return [text]
-    return [text[i:i+max] for i in range(0, len(text), max)]
+    return [text[i : i + max] for i in range(0, len(text), max)]
 
-def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
+
+def get_cleanlab_scores(nlp: Language, stream: StreamType, batch_size: int):
     while True:
-        msg.info(f"Computing clenalab  scores in batch. Size: {batch_size}. Could take some time")
+        msg.info(
+            f"Computing clenalab  scores in batch. Size: {batch_size}. "
+            "Could take some time"
+        )
         batch = []
         for i, s in enumerate(stream):
             if i > batch_size:
                 break
             batch.append(s)
         if batch:
-            docs = list(nlp.pipe([s['text'] for s in batch]))
+            docs = list(nlp.pipe([s["text"] for s in batch]))
             # computing confidence socres
-            inds, scores = nlp.get_pipe("spancat").predict(docs)    
-            
+            inds, scores = nlp.get_pipe("spancat").predict(docs)
+
             # computing cleanlab scores
             _, scores = get_active_learning_scores(pred_probs_unlabeled=scores)
-            
+
             # mean socres in each document for spancat
             count = 0
             new_scores = []
-            for l in inds.lengths:
-                if l > 0:
-                    new_scores.append(np.min(scores[count:count+l]))
+            for length in inds.lengths:
+                if length > 0:
+                    new_scores.append(np.min(scores[count : count + length]))
                 else:
                     new_scores.append(1)
-                count+=l
-            
+                count += length
+
             # mean socres in each document for span_finder
             if "span_finder" in nlp.pipe_names:
                 finder_scores = nlp.get_pipe("span_finder").predict(docs)
-                _, finder_scores = get_active_learning_scores(pred_probs_unlabeled=finder_scores)
+                _, finder_scores = get_active_learning_scores(
+                    pred_probs_unlabeled=finder_scores
+                )
 
                 count = 0
                 new_finder_scores = []
                 for doc in docs:
-                    l = len(doc)
-                    if l > 0:
-                        new_finder_scores.append(np.min(finder_scores[count:count+l]))
+                    length = len(doc)
+                    if length > 0:
+                        new_finder_scores.append(
+                            np.min(finder_scores[count : count + length])
+                        )
                     else:
                         new_finder_scores.append(1)
-                    count+=l
-            
+                    count += length
+
             for i, el in enumerate(batch):
                 score = new_scores[i]
                 if "span_finder" in nlp.pipe_names:
                     score = min(new_finder_scores[i], score)
-                if 'meta' not in el:
-                    el['meta'] = {}
-                el['meta']['score'] = score
+                if "meta" not in el:
+                    el["meta"] = {}
+                el["meta"]["score"] = score
                 yield (score, el)
         else:
             break
@@ -95,40 +108,52 @@ def get_cleanlab_scores(nlp:Language, stream:StreamType, batch_size:int):
     label=("Comma-separated label(s) to annotate or text file with one label per line", "option", "l", get_labels),
     exclude=("Dataset name or comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     author=("Name of annotator", "option", "a", str),
-    #unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
+    # unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     # fmt: on
 )
 def manual(
-        dataset: str,
-        spacy_model: str,
-        source: Union[str, Iterable[dict]],
-        loader: Optional[str] = None,
-        label: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None,
-        author: Optional[str] = None,
-        #unsegmented: bool = False,
+    dataset: str,
+    spacy_model: str,
+    source: Union[str, Iterable[dict]],
+    loader: Optional[str] = None,
+    label: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
+    author: Optional[str] = None,
+    # unsegmented: bool = False,
 ) -> RecipeSettingsType:
     """
-    Mark spans by token. Requires only a tokenizer, and doesn't do any active learning. 
-    The recipe will present all examples in order, so even examples without matches are shown. 
+    Mark spans by token. Requires only a tokenizer, and doesn't do any active learning.
+    The recipe will present all examples in order, so even examples without matches are shown.
     """
     log("RECIPE: Starting recipe quotes.manual", locals())
-    blocks = [{"view_id": "spans_manual"},
-              {"view_id": "text_input",
-               "field_rows": 3,
-               "field_id": "feedback",
-               "field_label": "Optional feedback",
-               "field_placeholder": "Type here..."}]
+    blocks = [
+        {"view_id": "spans_manual"},
+        {
+            "view_id": "text_input",
+            "field_rows": 3,
+            "field_id": "feedback",
+            "field_label": "Optional feedback",
+            "field_placeholder": "Type here...",
+        },
+    ]
     nlp = spacy.load(spacy_model)
     labels = label  # comma-separated list or path to text file
     if not labels:
         labels = nlp.pipe_labels.get("ner", [])
         if not labels:
             msg.fail("No --label argument set and no labels found in model", exits=1)
+        if TYPE_CHECKING:
+            # fix "Sized" [arg-type] error, see https://github.com/python/mypy/issues/13859
+            assert labels is not None
         msg.text(f"Using {len(labels)} labels from model: {', '.join(labels)}")
     log(f"RECIPE: Annotating with {len(labels)} labels", labels)
     stream = get_stream(
-        source, loader=loader, rehash=True, dedup=True, input_key="text", is_binary=False
+        source,
+        loader=loader,
+        rehash=True,
+        dedup=True,
+        input_key="text",
+        is_binary=False,
     )
     if author:
         stream = add_author(stream, author)
@@ -166,35 +191,39 @@ def manual(
     exclude=("Dataset name or comma-separated list of dataset IDs whose annotations to exclude", "option", "e", split_string),
     batch_size=("Batch size for cleanlab socres computing", "option", "b", int),
     author=("Name of annotator", "option", "a", str),
-    #unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
+    # unsegmented=("Don't get only parts with quotes", "flag", "U", bool),
     # fmt: on
 )
 def teach(
-        dataset: str,
-        spacy_model: str,
-        source: Union[str, Iterable[dict]],
-        loader: Optional[str] = None,
-        label: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None,
-        batch_size: int = 64,
-        author: Optional[str] = None,
-        #unsegmented: bool = False,
+    dataset: str,
+    spacy_model: str,
+    source: Union[str, Iterable[dict]],
+    loader: Optional[str] = None,
+    label: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
+    batch_size: int = 64,
+    author: Optional[str] = None,
+    # unsegmented: bool = False,
 ) -> RecipeSettingsType:
     """
-    Collect the best possible training data for a spancat model. 
+    Collect the best possible training data for a spancat model.
     Prodigy will decide which questions to ask next based on cleanlab score.
     """
     log("RECIPE: Starting recipe quotes.teach", locals())
-    blocks = [{"view_id": "spans"},
-              {"view_id": "text_input",
-               "field_rows": 3,
-               "field_id": "feedback",
-               "field_label": "Optional feedback",
-               "field_placeholder": "Type here..."}]
-    
+    blocks = [
+        {"view_id": "spans"},
+        {
+            "view_id": "text_input",
+            "field_rows": 3,
+            "field_id": "feedback",
+            "field_label": "Optional feedback",
+            "field_placeholder": "Type here...",
+        },
+    ]
+
     nlp = spacy.load(spacy_model)
     labels = nlp.get_pipe("spancat").labels
-    spans_key = nlp.get_pipe("spancat").cfg['spans_key']
+    spans_key = nlp.get_pipe("spancat").cfg["spans_key"]
     log(f"RECIPE: Creating EntityRecognizer using model {spacy_model}")
     if not label:
         label = labels
@@ -236,7 +265,7 @@ def teach(
             task[BINARY_ATTR] = False
             task = set_hashes(task)
             yield task
-    
+
     stream = make_tasks(nlp, stream)
 
     return {
@@ -254,6 +283,7 @@ def teach(
         },
     }
 
+
 @recipe(
     "quotes.correct",
     # fmt: off
@@ -270,38 +300,41 @@ def teach(
     # fmt: on
 )
 def correct(
-        dataset: str,
-        spacy_model: str,
-        source: Union[str, Iterable[dict]],
-        loader: Optional[str] = None,
-        label: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None,
-        batch_size: int = 64,
-        author: Optional[str] = None,
-        #unsegmented: bool = False,
-        update: bool = False,
+    dataset: str,
+    spacy_model: str,
+    source: Union[str, Iterable[dict]],
+    loader: Optional[str] = None,
+    label: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
+    batch_size: int = 64,
+    author: Optional[str] = None,
+    # unsegmented: bool = False,
+    update: bool = False,
 ) -> RecipeSettingsType:
     """
     Create gold data for spancat by correcting a model's suggestions.
     Prodigy will decide which questions to ask next based on cleanlab score
     """
     log("RECIPE: Starting recipe quotes.correct", locals())
-    blocks = [{"view_id": "spans_manual"},
-              {"view_id": "text_input",
-               "field_rows": 3,
-               "field_id": "feedback",
-               "field_label": "Optional feedback",
-               "field_placeholder": "Type here..."}]
+    blocks = [
+        {"view_id": "spans_manual"},
+        {
+            "view_id": "text_input",
+            "field_rows": 3,
+            "field_id": "feedback",
+            "field_label": "Optional feedback",
+            "field_placeholder": "Type here...",
+        },
+    ]
     nlp = spacy.load(spacy_model)
     labels = nlp.get_pipe("spancat").labels
-    spans_key = nlp.get_pipe("spancat").cfg['spans_key']
+    spans_key = nlp.get_pipe("spancat").cfg["spans_key"]
     if not label:
         label = labels
         if not labels:
             msg.fail("No --label argument set and no labels found in model", exits=1)
         msg.text(f"Using {len(labels)} labels from model: {', '.join(labels)}")
-    # Check if we're annotating all labels present in the model or a subset
-    no_missing = len(set(label).intersection(set(labels))) == len(labels)
+
     log(f"RECIPE: Annotating with {len(labels)} labels", labels)
     stream = get_stream(
         source, loader=loader, rehash=True, dedup=True, input_key="text"
@@ -341,6 +374,8 @@ def correct(
             yield task
 
     def make_update(answers: Iterable[dict]) -> None:
+        if TYPE_CHECKING:
+            assert answers is not None and isinstance(answers, dict)
         log(f"RECIPE: Updating model with {len(answers)} answers")
         examples = []
         for eg in answers:
@@ -355,11 +390,12 @@ def correct(
                     doc.char_span(span["start"], span["end"])
                     for span in eg.get("spans", [])
                 ]
-                if 'span_finder' in nlp.pipe_names:
-                    doc.spans['span_candidates'] = span_candidates
+                if "span_finder" in nlp.pipe_names:
+                    doc.spans["span_candidates"] = span_candidates
                 ref.spans[spans_key] = spans
                 examples.append(Example(doc, ref))
         nlp.update(examples)
+
     stream = make_tasks(nlp, stream)
 
     return {
@@ -379,36 +415,39 @@ def correct(
         },
     }
 
+
 def print_results(ctrl: Controller) -> None:
     examples = ctrl.db.get_dataset(ctrl.session_id)
     if examples:
-        counts = Counter()
+        counts: Counter = Counter()
         for eg in examples:
             counts[eg["answer"]] += 1
         for key in ["accept", "reject", "ignore"]:
             if key in counts:
                 msg.row([key.title(), color(round(counts[key]), key)], widths=10)
 
+
 # Code that not used but could be helpfull in the future
 
-def get_parts_with_quotes(stream:StreamType, lang:str)->StreamType:
+
+def get_parts_with_quotes(stream: StreamType, lang: str) -> StreamType:
     nlp = spacy.blank(lang)
     nlp.add_pipe("sentencizer")
     pattern = """["'«„].+?["'»“]"""
     for doc in stream:
         sents = []
-        for chunk in chunks(doc['text'], 1000000):
+        for chunk in chunks(doc["text"], 1000000):
             sents += list(nlp(chunk).sents)
 
         # Search for candidate results
-        results = []
-        for quote in re.finditer(pattern, doc['text']):
+        results: List[List[int]] = []
+        for quote in re.finditer(pattern, doc["text"]):
             result = [0, 0]
             for i, sent in enumerate(sents):
                 if sent.start_char < quote.start(0):
-                    result[0] = sents[i-1 if i != 0 else i].start_char
+                    result[0] = sents[i - 1 if i != 0 else i].start_char
                 if sent.end_char > quote.end(0):
-                    result[1] = sents[i+1 if i != len(sents)-1 else i].end_char
+                    result[1] = sents[i + 1 if i != len(sents) - 1 else i].end_char
                     results.append(result)
                     break
 
@@ -427,5 +466,7 @@ def get_parts_with_quotes(stream:StreamType, lang:str)->StreamType:
             new_results.append(last_result)
 
         for result in new_results:
-            eg = set_hashes({"text": doc['text'][result[0]:result[1]], "meta":doc['meta']})
+            eg = set_hashes(
+                {"text": doc["text"][result[0] : result[1]], "meta": doc["meta"]}
+            )
             yield eg

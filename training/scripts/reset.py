@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 import shutil
 from pathlib import Path
+
 import typer
 from wasabi import Printer
 
