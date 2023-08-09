@@ -5,7 +5,9 @@ vars:
   #base_config - use ngram_suggester
   #config_cs - use custom_suggester
   #config_sf - use span_finder
-  config: "config_sf"
+  #transformer_config - use ngram_suggester and transformer
+  #transformer_config_sf - use span_finder and transformer
+  config: "base_config"
   dataset: "quote-extraction-russian"
   
   train: "train"
